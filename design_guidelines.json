@@ -1,0 +1,127 @@
+{
+  "theme": "light",
+  "archetype": "1_organic_and_earthy",
+  "domain": "mental_health_advocacy",
+  "colors": {
+    "background": {
+      "base": "#F9F7F3",
+      "surface": "#FFFFFF",
+      "surface_alt": "#F1EFEB"
+    },
+    "text": {
+      "primary": "#1F1A17",
+      "secondary": "#5C5651",
+      "inverse": "#FFFFFF",
+      "accent": "#9C3D22"
+    },
+    "brand": {
+      "primary": "#9C3D22",
+      "primary_hover": "#7A2E19",
+      "secondary": "#5A7059",
+      "secondary_hover": "#465845",
+      "border": "#E5E1D8",
+      "error": "#D32F2F",
+      "success": "#388E3C"
+    }
+  },
+  "typography": {
+    "font_families": {
+      "heading": "Clash Display",
+      "body": "Manrope",
+      "mono": "JetBrains Mono"
+    },
+    "scales": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter leading-none",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight leading-tight",
+      "h3": "text-xl sm:text-2xl tracking-tight leading-snug",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body_large": "text-lg leading-relaxed",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm leading-normal",
+      "overline": "text-xs tracking-[0.2em] uppercase font-bold"
+    },
+    "rules": {
+      "heading_weight": "font-semibold to font-bold",
+      "body_weight": "font-normal to font-medium"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous Spacing, Optical Alignment",
+    "container_padding": "px-6 md:px-12 lg:px-24 py-16 md:py-24",
+    "grid_strategy": {
+      "marketing": "Asymmetrical 'Bento' grid with wide gaps (gap-8 to gap-12). Leave negative space for emotional breathing room.",
+      "dashboard": "Tight functional grid (gap-6). Use h-full for equal heights."
+    }
+  },
+  "surfaces_and_borders": {
+    "cards": "bg-white border border-[#E5E1D8] rounded-xl p-8 shadow-sm hover:shadow-md transition-shadow",
+    "buttons": {
+      "primary": "bg-[#9C3D22] text-white hover:bg-[#7A2E19] rounded-full px-6 py-3 font-medium transition-colors",
+      "secondary": "bg-[#5A7059] text-white hover:bg-[#465845] rounded-full px-6 py-3 font-medium transition-colors",
+      "outline": "border border-[#1F1A17] text-[#1F1A17] hover:bg-[#F1EFEB] rounded-full px-6 py-3 font-medium transition-colors"
+    },
+    "header": "bg-[#F9F7F3] border-b border-[#E5E1D8]",
+    "glassmorphism_banned": "Avoid glassmorphism. Use solid, tactile, matte surfaces for trust and warmth in sensitive contexts."
+  },
+  "motion_and_interaction": {
+    "hover_states": "Subtle scale (-translate-y-1) for cards. Color darkening for buttons.",
+    "transitions": "transition-all duration-300 ease-in-out",
+    "entrance": "Staggered fade-up for lists and feed items (framer-motion recommended)."
+  },
+  "icons_and_assets": {
+    "library": "lucide-react",
+    "style": "Clean, distinct, stroke-width 2px."
+  },
+  "image_urls": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1776544717878-36385659694f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwyfHxzdW5saWdodCUyMGJyZWFraW5nJTIwdGhyb3VnaCUyMGRhcmslMjBjbG91ZHMlMjBob3BlfGVufDB8fHx8MTc3ODU0NTQ3NXww&ixlib=rb-4.1.0&q=85",
+      "description": "Sunbeams breaking through dark storm clouds",
+      "category": "hero",
+      "placement": "Background of the main landing page hero section. Use with a gradient overlay to ensure text readability."
+    },
+    "hero_background_alt": {
+      "url": "https://images.unsplash.com/photo-1777460075923-fb23c1ce4972?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxzdW5saWdodCUyMGJyZWFraW5nJTIwdGhyb3VnaCUyMGRhcmslMjBjbG91ZHMlMjBob3BlfGVufDB8fHx8MTc3ODU0NTQ3NXww&ixlib=rb-4.1.0&q=85",
+      "description": "Golden sunbeams break through dark stormy clouds over city",
+      "category": "hero",
+      "placement": "Alternative hero background or full-width section break."
+    },
+    "counselor_portrait_1": {
+      "url": "https://images.pexels.com/photos/19963193/pexels-photo-19963193.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Cheerful female professional sitting cross-legged",
+      "category": "directory",
+      "placement": "Counselor directory profile placeholder."
+    },
+    "counselor_portrait_2": {
+      "url": "https://images.pexels.com/photos/19899323/pexels-photo-19899323.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Portrait of a smiling woman promoting wellness",
+      "category": "directory",
+      "placement": "Counselor directory profile placeholder."
+    },
+    "support_group_1": {
+      "url": "https://images.unsplash.com/photo-1646066489838-aa1eddbe5964?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzV8MHwxfHNlYXJjaHw0fHxzdXBwb3J0JTIwZ3JvdXAlMjB0aGVyYXB5fGVufDB8fHx8MTc3ODU0NTQ2M3ww&ixlib=rb-4.1.0&q=85",
+      "description": "A group of people sitting around a wooden bench",
+      "category": "community",
+      "placement": "Community feed or support group section."
+    },
+    "texture_background": {
+      "url": "https://images.unsplash.com/photo-1662658826032-057302848ff7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMHdhcm0lMjBjbGF5JTIwdGV4dHVyZXxlbnwwfHx8fDE3Nzg1NDU0Nzl8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Warm abstract pattern",
+      "category": "texture",
+      "placement": "Background for about/mission section to add depth."
+    }
+  },
+  "testing": {
+    "data_testid_requirement": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case."
+  },
+  "instructions_to_main_agent": [
+    "Install and use 'lucide-react' for all icons.",
+    "Do NOT use 'Inter', 'Roboto', 'Open Sans', or 'Lato' for headings. Use 'Clash Display' for bold advocacy impact. Use 'Manrope' for body text.",
+    "Use solid HTML/Tailwind for marketing sections, allowing for asymmetry and overlapping elements. Avoid rigid Shadcn Card components in the hero or unique story sections.",
+    "Use Shadcn UI components ONLY for complex interactive logic like the booking form, directory filters, and contact forms.",
+    "Hero image MUST use a gradient overlay for text readability, e.g., 'bg-gradient-to-r from-[#1F1A17]/80 to-transparent'. Never use a flat black 50% overlay.",
+    "Never use pure black or pure white shadows; tint shadows with the primary background color to maintain warmth.",
+    "Emphasize negative space. Use 'p-8' or 'p-12' inside containers to give the heavy emotional content breathing room.",
+    "The AI Chatbot should feel like a safe, grounded tool—use soft borders, ample padding, and the warm secondary color (#5A7059) for its header/UI accents.",
+    "In the Mission/About section, emphasize the 'advocacy-driven' tone by using large typography for key statements, paired with the deep terracotta accent color."
+  ]
+}
