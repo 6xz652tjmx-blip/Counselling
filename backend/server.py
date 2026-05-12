@@ -124,7 +124,7 @@ SEED_COUNSELORS: List[dict] = [
         "rate": "$140 / session",
         "rating": 4.9,
         "accepting_new": True,
-        "image_url": "https://images.pexels.com/photos/19899323/pexels-photo-19899323.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "image_url": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=940&q=80",
     },
     {
         "id": "c-002",
@@ -139,7 +139,7 @@ SEED_COUNSELORS: List[dict] = [
         "rate": "$120 / session",
         "rating": 4.8,
         "accepting_new": True,
-        "image_url": "https://images.pexels.com/photos/19963193/pexels-photo-19963193.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "image_url": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=940&q=80",
     },
     {
         "id": "c-003",
@@ -154,7 +154,7 @@ SEED_COUNSELORS: List[dict] = [
         "rate": "$135 / session",
         "rating": 5.0,
         "accepting_new": False,
-        "image_url": "https://images.pexels.com/photos/19899323/pexels-photo-19899323.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "image_url": "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=940&q=80",
     },
     {
         "id": "c-004",
@@ -169,7 +169,7 @@ SEED_COUNSELORS: List[dict] = [
         "rate": "$95 / session",
         "rating": 4.7,
         "accepting_new": True,
-        "image_url": "https://images.pexels.com/photos/19963193/pexels-photo-19963193.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "image_url": "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=940&q=80",
     },
     {
         "id": "c-005",
@@ -184,7 +184,7 @@ SEED_COUNSELORS: List[dict] = [
         "rate": "$180 / session",
         "rating": 4.9,
         "accepting_new": True,
-        "image_url": "https://images.pexels.com/photos/19899323/pexels-photo-19899323.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "image_url": "https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?auto=format&fit=crop&w=940&q=80",
     },
     {
         "id": "c-006",
@@ -199,7 +199,7 @@ SEED_COUNSELORS: List[dict] = [
         "rate": "$110 / session",
         "rating": 4.8,
         "accepting_new": True,
-        "image_url": "https://images.pexels.com/photos/19963193/pexels-photo-19963193.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "image_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=940&q=80",
     },
 ]
 
@@ -301,6 +301,12 @@ async def seed_db():
     # Idempotent seed
     if await db.counselors.count_documents({}) == 0:
         await db.counselors.insert_many([dict(c) for c in SEED_COUNSELORS])
+    else:
+        # Keep image_urls fresh on every restart so theming stays in sync.
+        for c in SEED_COUNSELORS:
+            await db.counselors.update_one(
+                {"id": c["id"]}, {"$set": {"image_url": c["image_url"]}}
+            )
     if await db.stories.count_documents({}) == 0:
         await db.stories.insert_many([dict(s) for s in SEED_STORIES])
     if await db.resources.count_documents({}) == 0:
