@@ -35,7 +35,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 async def connect_db():
-    # === YOUR MONGODB ATLAS CONNECTION (HARDCODED) ===
+    # === HARDCODED MONGODB ATLAS (YOUR ACCOUNT) ===
     mongo_url = "mongodb+srv://charts+6a02b60d1b413567168ea237:njP%sjKSC#0aAjU&7qfs@cluster0.czw0rlt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     
     db_name = os.environ.get('DB_NAME', 'unbound_counselling')
