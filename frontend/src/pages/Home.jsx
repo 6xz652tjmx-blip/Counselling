@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Quote, ShieldCheck, HeartHandshake, Scale, Users } from "lucide-react";
+import { ArrowUpRight, Quote, ShieldCheck, HeartHandshake, Scale, Users, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getStories, getCounselors } from "../lib/api";
 
@@ -19,6 +19,14 @@ const TRUTHS = [
   "Your story is not a case number.",
 ];
 
+function CheckIcon() {
+  return (
+    <span className="inline-flex w-4 h-4 rounded-full bg-[#9C3D22] text-white items-center justify-center text-[10px] mt-0.5 flex-shrink-0">
+      ✓
+    </span>
+  );
+}
+
 export default function Home() {
   const [stories, setStories] = useState([]);
   const [counselors, setCounselors] = useState([]);
@@ -28,8 +36,7 @@ export default function Home() {
     getCounselors().then(setCounselors).catch(() => {});
   }, []);
 
-  return (
-    <div data-testid="home-page">
+  return (    <div data-testid="home-page">
       {/* HERO */}
       <section
         className="relative overflow-hidden border-b border-[#E5E1D8]"
@@ -101,6 +108,71 @@ export default function Home() {
               {t} <span className="mx-6 opacity-50">/</span>
             </span>
           ))}
+        </div>
+      </section>
+
+      {/* DECIPHER PROMO */}
+      <section
+        className="bg-[#F1EFEB] border-y border-[#E5E1D8]"
+        data-testid="decipher-promo-section"
+      >
+        <div className="max-w-7xl mx-auto px-6 md:px-12 py-20 md:py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            <div className="lg:col-span-7">
+              <p className="overline text-xs tracking-[0.25em] uppercase font-bold text-[#9C3D22]">
+                New · Decipher
+              </p>
+              <h2 className="font-display text-3xl md:text-5xl font-semibold tracking-tight mt-3 leading-tight">
+                Upload your court order. We'll translate it into something a parent can read.
+              </h2>
+              <p className="text-[#5C5651] mt-6 leading-relaxed max-w-2xl">
+                Decipher uses AI to read your order, list the obligations,
+                flag the deadlines, and recommend grounded next steps you can
+                take this week. Educational — not legal advice — but written
+                for the human holding the paper.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  to="/decipher"
+                  className="inline-flex items-center gap-2 bg-[#1F1A17] hover:bg-black text-white rounded-full px-7 py-3.5 font-medium transition-colors"
+                  data-testid="home-decipher-cta"
+                >
+                  Decipher an order <ArrowUpRight size={16} />
+                </Link>
+                <Link
+                  to="/decipher"
+                  className="inline-flex items-center gap-2 border border-[#1F1A17] text-[#1F1A17] hover:bg-[#F9F7F3] rounded-full px-7 py-3.5 font-medium transition-colors"
+                  data-testid="home-decipher-learn-more"
+                >
+                  See what you get
+                </Link>
+              </div>
+            </div>
+            <div className="lg:col-span-5">
+              <div className="bg-white border border-[#E5E1D8] rounded-2xl p-7">
+                <div className="flex items-center gap-2 text-[#9C3D22]">
+                  <FileText size={18} />
+                  <p className="font-mono text-xs tracking-wider uppercase">
+                    Decipher · sample output
+                  </p>
+                </div>
+                <h3 className="font-display text-lg font-semibold mt-4 leading-snug">
+                  Temporary order on custody and counselling
+                </h3>
+                <ul className="mt-4 space-y-2 text-sm text-[#5C5651]">
+                  <li className="flex gap-2"><CheckIcon /> Both parents to complete 8 weeks of court-ordered counselling.</li>
+                  <li className="flex gap-2"><CheckIcon /> First counselling report due to court by week 6.</li>
+                  <li className="flex gap-2"><CheckIcon /> Child's school records released to evaluator.</li>
+                </ul>
+                <p className="mt-5 text-xs text-[#5A7059] font-semibold uppercase tracking-wider">
+                  Next steps
+                </p>
+                <p className="text-sm text-[#1F1A17] mt-2 leading-relaxed">
+                  Book counsellor by Friday. Ask attorney about scope of school-records release.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

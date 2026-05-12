@@ -8,6 +8,7 @@ import Stories from "./pages/Stories";
 import Resources from "./pages/Resources";
 import Contact from "./pages/Contact";
 import Chat from "./pages/Chat";
+import Decipher from "./pages/Decipher";
 import About from "./pages/About";
 import { Toaster } from "./components/ui/sonner";
 
@@ -23,6 +24,7 @@ function App() {
             <Route path="/stories" element={<Stories />} />
             <Route path="/resources" element={<Resources />} />
             <Route path="/chat" element={<Chat />} />
+            <Route path="/decipher" element={<Decipher />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="*" element={<Home />} />

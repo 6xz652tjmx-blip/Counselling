@@ -1,8 +1,11 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import json
+import re
+import tempfile
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
@@ -10,7 +13,11 @@ from typing import List, Optional, Literal
 import uuid
 from datetime import datetime, timezone
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.chat import (
+    LlmChat,
+    UserMessage,
+    FileContentWithMimeType,
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -456,6 +463,165 @@ async def chat_history(session_id: str):
     return {"session_id": session_id, "messages": msgs}
 
 
+# =========================
+# Court Order Decipher (Gemini 2.5 Pro — supports file attachments)
+# =========================
+ORDER_ANALYZER_SYSTEM = (
+    "You are 'Decipher', a calm, plain-language analyst on Unbound — a "
+    "platform for people navigating family court. You read court orders, "
+    "stipulations, mandates, and custody documents and translate them into "
+    "human language. You are NOT a lawyer. You give educational analysis "
+    "and recommended next steps, never legal advice. "
+    "You always: (1) acknowledge the emotional weight of receiving an "
+    "order, (2) identify obligations clearly, (3) flag deadlines, (4) name "
+    "anything that looks unusual, vague, or potentially biased so the "
+    "reader can ask their attorney about it, (5) recommend concrete next "
+    "steps a non-lawyer can take this week. "
+    "ALWAYS respond with VALID JSON ONLY (no prose outside the JSON, no "
+    "markdown fences). The JSON schema is: "
+    '{"document_type": str, "summary": str, "tone_note": str, '
+    '"key_obligations": [{"item": str, "responsible_party": str, '
+    '"due": str}], "deadlines": [{"date_or_window": str, "what": str}], '
+    '"things_to_watch": [str], "next_steps": [{"step": str, '
+    '"why_it_matters": str}], "questions_for_your_attorney": [str], '
+    '"emotional_grounding": str}. '
+    "If a field has no content, return an empty string or empty array — "
+    "never omit a key. Keep each string under 280 characters."
+)
+
+
+class OrderAnalysisResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    filename: str
+    mime_type: str
+    created_at: str
+    analysis: dict
+
+
+ALLOWED_MIMES = {
+    "application/pdf",
+    "text/plain",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+}
+
+
+def _safe_parse_json(raw: str) -> dict:
+    """Try hard to parse Gemini's reply as JSON."""
+    if not raw:
+        return {"error": "Empty model response"}
+    # Strip code fences if present
+    cleaned = raw.strip()
+    cleaned = re.sub(r"^```(?:json)?", "", cleaned).strip()
+    cleaned = re.sub(r"```$", "", cleaned).strip()
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        # Find first { and last } and try again
+        first = cleaned.find("{")
+        last = cleaned.rfind("}")
+        if first != -1 and last != -1:
+            try:
+                return json.loads(cleaned[first : last + 1])
+            except Exception:
+                pass
+    return {
+        "document_type": "Unknown",
+        "summary": cleaned[:2000],
+        "tone_note": "",
+        "key_obligations": [],
+        "deadlines": [],
+        "things_to_watch": [],
+        "next_steps": [],
+        "questions_for_your_attorney": [],
+        "emotional_grounding": "",
+        "_raw": True,
+    }
+
+
+@api_router.post("/orders/analyze", response_model=OrderAnalysisResult)
+async def analyze_order(
+    file: UploadFile = File(...),
+    notes: Optional[str] = Form(None),
+):
+    mime = (file.content_type or "").lower()
+    if mime not in ALLOWED_MIMES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {mime}. Upload a PDF, image, or text file.",
+        )
+
+    # Persist to a temp file — emergentintegrations needs a real file path
+    suffix = Path(file.filename or "").suffix or ".bin"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    try:
+        content = await file.read()
+        if len(content) > 15 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large (max 15 MB).")
+        tmp.write(content)
+        tmp.flush()
+        tmp.close()
+
+        session_id = f"order-{uuid.uuid4()}"
+        chat_client = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message=ORDER_ANALYZER_SYSTEM,
+        ).with_model("gemini", "gemini-2.5-pro")
+
+        attachment = FileContentWithMimeType(
+            file_path=tmp.name,
+            mime_type=mime,
+        )
+
+        user_text = (
+            "Analyze the attached family court document. Return ONLY the "
+            "JSON object described in the system message. "
+        )
+        if notes:
+            user_text += f"\n\nUser context (optional): {notes[:500]}"
+
+        raw = await chat_client.send_message(
+            UserMessage(text=user_text, file_contents=[attachment])
+        )
+
+        analysis = _safe_parse_json(raw)
+
+        result = {
+            "id": str(uuid.uuid4()),
+            "filename": file.filename or "untitled",
+            "mime_type": mime,
+            "created_at": now_iso(),
+            "analysis": analysis,
+        }
+        await db.order_analyses.insert_one(result.copy())
+        # Mongo mutates dict with _id — strip it before returning.
+        result.pop("_id", None)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Order analysis error")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except Exception:
+            pass
+
+
+@api_router.get("/orders/{order_id}", response_model=OrderAnalysisResult)
+async def get_order_analysis(order_id: str):
+    doc = await db.order_analyses.find_one({"id": order_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+    return doc
+
+
 @api_router.get("/stats")
 async def stats():
     return {
@@ -463,6 +629,7 @@ async def stats():
         "stories_approved": await db.stories.count_documents({"status": "approved"}),
         "stories_pending": await db.stories.count_documents({"status": "pending"}),
         "bookings": await db.bookings.count_documents({}),
+        "orders_analyzed": await db.order_analyses.count_documents({}),
     }
 
 
