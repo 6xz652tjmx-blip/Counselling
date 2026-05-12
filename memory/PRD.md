@@ -37,6 +37,10 @@
 ## Added (v1.1 — 2025-12)
 - **Decipher** (`/decipher`): upload court order (PDF / image / text), AI returns structured analysis (summary, obligations, deadlines, things-to-watch, next steps, attorney questions, emotional grounding). Uses Gemini 2.5 Pro via emergentintegrations + EMERGENT_LLM_KEY. Endpoints: `POST /api/orders/analyze`, `GET /api/orders/{id}`. Home promo section + Navbar entry added.
 
+## Added (v1.2 — 2025-12)
+- **Jurisdiction-aware tuning** for both Decipher (Gemini) and Anchor (Claude). Endpoint `GET /api/jurisdictions` exposes 10 US states + Other. Decipher and Chat each accept a `jurisdiction` field that prepends a state-specific addendum (e.g., Texas Family Code §153.312, California Family Code §3011) to the system prompt.
+- **Decipher → Anchor context wiring**: Decipher result hero shows jurisdiction badge, and "Ask Anchor about this order" deep-links to `/chat?order=<id>&jurisdiction=<code>`. Chat fetches the analysis, displays a context banner (document type + filename + jurisdiction), changes the greeting + starter prompts to be order-specific, and includes the analysis (summary, obligations, deadlines, watch-items) in Anchor's system message so replies cite real deadlines and obligations. A clear-order button restores generic Anchor mode without page reload.
+
 ## Backlog
 ### P0 — pre-launch
 - Replace stock images with platform-owned or illustrated portraits
