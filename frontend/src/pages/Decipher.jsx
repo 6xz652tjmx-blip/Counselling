@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import {
@@ -14,9 +14,17 @@ import {
   Heart,
   Loader2,
   ArrowUpRight,
+  MapPin,
 } from "lucide-react";
 import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { toast } from "sonner";
 import { API } from "../lib/api";
 
@@ -27,9 +35,18 @@ export default function Decipher() {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [notes, setNotes] = useState("");
+  const [jurisdiction, setJurisdiction] = useState("");
+  const [jurisdictions, setJurisdictions] = useState([]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+
+  useEffect(() => {
+    axios
+      .get(`${API}/jurisdictions`)
+      .then((r) => setJurisdictions(r.data))
+      .catch(() => {});
+  }, []);
 
   const choose = (f) => {
     if (!f) return;
@@ -51,6 +68,7 @@ export default function Decipher() {
     setFile(null);
     setResult(null);
     setNotes("");
+    setJurisdiction("");
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -65,6 +83,7 @@ export default function Decipher() {
       const fd = new FormData();
       fd.append("file", file);
       if (notes.trim()) fd.append("notes", notes.trim());
+      if (jurisdiction) fd.append("jurisdiction", jurisdiction);
       const res = await axios.post(`${API}/orders/analyze`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 120000,
@@ -173,6 +192,31 @@ export default function Decipher() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div>
+            <Label className="text-xs uppercase tracking-[0.18em] text-[#5C5651] flex items-center gap-1.5">
+              <MapPin size={12} /> Your jurisdiction (optional)
+            </Label>
+            <Select value={jurisdiction} onValueChange={setJurisdiction}>
+              <SelectTrigger
+                className="mt-2 bg-white border-[#E5E1D8]"
+                data-testid="decipher-jurisdiction-trigger"
+              >
+                <SelectValue placeholder="Helps tune the analysis to local law" />
+              </SelectTrigger>
+              <SelectContent>
+                {jurisdictions.map((j) => (
+                  <SelectItem key={j.code} value={j.code} data-testid={`decipher-jurisdiction-${j.code}`}>
+                    {j.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1.5 text-xs text-[#5C5651]/80">
+              Decipher will reference your state's family-law framework when
+              relevant. Pick "Other / Unknown" if unsure.
+            </p>
           </div>
 
           <div>
@@ -293,9 +337,19 @@ function ResultView({ result }) {
   return (
     <div className="space-y-6" data-testid="decipher-result">
       <div className="bg-[#1F1A17] text-[#F9F7F3] rounded-2xl p-8 md:p-9 relative overflow-hidden">
-        <p className="overline text-xs tracking-[0.25em] uppercase font-bold text-[#E27A4D]">
-          {a.document_type || "Court Document"}
-        </p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="overline text-xs tracking-[0.25em] uppercase font-bold text-[#E27A4D]">
+            {a.document_type || "Court Document"}
+          </p>
+          {result.jurisdiction_name && (
+            <span
+              className="text-[10px] tracking-[0.18em] uppercase font-bold bg-[#5A7059]/30 text-[#E27A4D] px-2.5 py-1 rounded-full inline-flex items-center gap-1"
+              data-testid="decipher-result-jurisdiction"
+            >
+              <MapPin size={10} /> {result.jurisdiction_name}
+            </span>
+          )}
+        </div>
         <h2 className="font-display text-2xl md:text-3xl font-semibold mt-3 leading-tight">
           {a.summary || "No summary returned."}
         </h2>
@@ -449,11 +503,13 @@ function ResultView({ result }) {
           Talk to a counsellor about this <ArrowUpRight size={16} />
         </Link>
         <Link
-          to="/chat"
-          className="flex-1 border border-[#1F1A17] text-[#1F1A17] hover:bg-[#F1EFEB] rounded-full px-6 py-3.5 text-center font-medium transition-colors"
+          to={`/chat?order=${encodeURIComponent(result.id)}${
+            result.jurisdiction ? `&jurisdiction=${result.jurisdiction}` : ""
+          }`}
+          className="flex-1 bg-[#5A7059] hover:bg-[#465845] text-white rounded-full px-6 py-3.5 text-center font-medium transition-colors inline-flex items-center justify-center gap-2"
           data-testid="decipher-cta-anchor"
         >
-          Bring this to Anchor
+          Ask Anchor about this order <Sparkles size={16} />
         </Link>
       </div>
 
