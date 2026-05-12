@@ -35,24 +35,24 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 async def connect_db():
-    mongo_url = os.environ.get('MONGO_URL') or os.environ.get('MONGODB_URL') or os.environ.get('MONGODB_URI') or "mongodb://localhost:27017"
-    # Log sanitized URL for debugging
-    if mongo_url and 'localhost' not in mongo_url:
-        safe_url = mongo_url.split('@')[-1] if '@' in mongo_url else mongo_url[:30] + '...'
-        logging.info(f'🔗 Using MongoDB URL: {safe_url}')
-    else:
-        logging.warning('⚠️  Using fallback localhost MongoDB - check env vars!')
+    # === YOUR MONGODB ATLAS CONNECTION (HARDCODED) ===
+    mongo_url = "mongodb+srv://charts+6a02b60d1b413567168ea237:njP%sjKSC#0aAjU&7qfs@cluster0.czw0rlt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    
     db_name = os.environ.get('DB_NAME', 'unbound_counselling')
+    
+    logging.info("🔗 Using MongoDB Atlas (hardcoded)")
+
     for attempt in range(8):
         try:
             client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=15000)
             await client.admin.command('ping')
             db = client[db_name]
-            logging.info(f'✅ Connected to MongoDB {db_name}')
+            logging.info(f'✅ Connected to MongoDB Atlas - {db_name}')
             return client, db
         except Exception as e:
             logging.warning(f'Attempt {attempt+1}/8: {str(e)[:200]}...')
             await asyncio.sleep(2 ** attempt)
+    
     logging.error('❌ MongoDB connection failed after retries')
     return None, None
 
