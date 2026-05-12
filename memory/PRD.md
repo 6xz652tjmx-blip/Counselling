@@ -33,7 +33,9 @@
 - About (`/about`) — mission + four tenets
 - Navbar (desktop + mobile menu), Footer with crisis line
 - Idempotent seed of 6 counsellors, 4 approved stories, 6 resources on startup
-- 100% backend test pass (17/17), all frontend flows verified via testing_agent_v3
+
+## Added (v1.1 — 2025-12)
+- **Decipher** (`/decipher`): upload court order (PDF / image / text), AI returns structured analysis (summary, obligations, deadlines, things-to-watch, next steps, attorney questions, emotional grounding). Uses Gemini 2.5 Pro via emergentintegrations + EMERGENT_LLM_KEY. Endpoints: `POST /api/orders/analyze`, `GET /api/orders/{id}`. Home promo section + Navbar entry added.
 
 ## Backlog
 ### P0 — pre-launch
