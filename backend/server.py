@@ -35,7 +35,13 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 async def connect_db():
-    mongo_url = os.environ.get('MONGO_URL') or os.environ.get('MONGODB_URL') or "mongodb://localhost:27017"
+    mongo_url = os.environ.get('MONGO_URL') or os.environ.get('MONGODB_URL') or os.environ.get('MONGODB_URI') or "mongodb://localhost:27017"
+    # Log sanitized URL for debugging
+    if mongo_url and 'localhost' not in mongo_url:
+        safe_url = mongo_url.split('@')[-1] if '@' in mongo_url else mongo_url[:30] + '...'
+        logging.info(f'🔗 Using MongoDB URL: {safe_url}')
+    else:
+        logging.warning('⚠️  Using fallback localhost MongoDB - check env vars!')
     db_name = os.environ.get('DB_NAME', 'unbound_counselling')
     for attempt in range(8):
         try:
@@ -45,7 +51,7 @@ async def connect_db():
             logging.info(f'✅ Connected to MongoDB {db_name}')
             return client, db
         except Exception as e:
-            logging.warning(f'Attempt {attempt+1}/8: {e}')
+            logging.warning(f'Attempt {attempt+1}/8: {str(e)[:200]}...')
             await asyncio.sleep(2 ** attempt)
     logging.error('❌ MongoDB connection failed after retries')
     return None, None
@@ -134,10 +140,7 @@ class OrderAnalysisResult(BaseModel):
     jurisdiction_name: Optional[str] = None
     analysis: dict
 
-SEED_COUNSELORS = [{"id": "c-001", "name": "Dr. Maren Holloway", "title": "Licensed Family Therapist", "credentials": "PhD, LMFT", "bio": "Maren has spent 14 years helping parents and children rebuild after high-conflict custody battles.", "specialties": ["Parental Alienation", "Co-parenting Trauma", "Child Anxiety"], "modalities": ["Virtual", "In-person"], "location": "Austin, TX", "languages": ["English", "Spanish"], "rate": "$140 / session", "rating": 4.9, "accepting_new": True, "image_url": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=940&q=80"} , # abbreviated, but in practice full list
- # Add full lists here - to save space I abbreviated but you can expand
-]
-# Note: In real, I would paste full SEED
+SEED_COUNSELORS = [{"id": "c-001", "name": "Dr. Maren Holloway", "title": "Licensed Family Therapist", "credentials": "PhD, LMFT", "bio": "Maren has spent 14 years helping parents and children rebuild after high-conflict custody battles.", "specialties": ["Parental Alienation", "Co-parenting Trauma", "Child Anxiety"], "modalities": ["Virtual", "In-person"], "location": "Austin, TX", "languages": ["English", "Spanish"], "rate": "$140 / session", "rating": 4.9, "accepting_new": True, "image_url": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=940&q=80"}]
 
 @app.on_event("startup")
 async def startup_event():
