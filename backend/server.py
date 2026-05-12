@@ -13,21 +13,40 @@ from typing import List, Optional, Literal
 import uuid
 from datetime import datetime, timezone
 
-from emergentintegrations.llm.chat import (
-    LlmChat,
-    UserMessage,
-    FileContentWithMimeType,
-)
+# === TEMPORARY MOCK FOR RAILWAY DEPLOYMENT (no emergentintegrations) ===
+class MockLlmChat:
+    def __init__(self, api_key, session_id, system_message):
+        self.api_key = api_key
+        self.session_id = session_id
+        self.system_message = system_message
+
+    def with_model(self, provider, model):
+        return self
+
+    async def send_message(self, message):
+        if hasattr(message, 'text'):
+            return "I'm here with you. What's weighing on your heart about the court situation today? ❤️ (Simple mode — full AI coming soon)"
+        return "I'm listening. Tell me more."
+
+class MockAnchor:
+    async def chat(self, message: str, **kwargs):
+        return {"response": "I'm here with you. What's on your mind about the court situation? ❤️ (Simple mode)"}
+
+# Mock objects to replace real imports
+LlmChat = MockLlmChat
+Anchor = MockAnchor()
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ.get('MONGO_URL')
+if not mongo_url:
+    mongo_url = "mongodb://localhost:27017"  # fallback for local
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', 'unbound_counselling')]
 
-EMERGENT_LLM_KEY = os.environ['EMERGENT_LLM_KEY']
+# EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')  # commented out
 
 # Create the main app without a prefix
 app = FastAPI(title="Unbound — Family Court Counselling")
@@ -407,151 +426,12 @@ async def submit_contact(payload: ContactCreate):
     return contact
 
 
-ANCHOR_BASE_PROMPT = (
-    "You are 'Anchor', a warm, grounded guidance companion on Unbound — a platform for "
-    "people living through family court-ordered counselling. You are NOT a lawyer, judge, "
-    "or licensed therapist. You give compassionate, plain-language information about the "
-    "emotional and procedural realities of family court, court-ordered counselling, "
-    "co-parenting under mandate, and supporting children through it. "
-    "Acknowledge the user's pain. Validate that the system is often unjust and unequally "
-    "applied. Never minimize. Never pretend the court is fair when the user's experience "
-    "says otherwise. Offer one small, doable next step. Encourage connection with a "
-    "licensed counsellor in the directory when emotions feel heavy. Keep replies under "
-    "180 words unless asked. Use short paragraphs. Never give specific legal advice — "
-    "instead, name the kind of professional who could help."
-)
-
-
-# Map of jurisdiction code -> (display name, code-reference shorthand the LLM should cite)
-JURISDICTION_REFS: dict[str, dict[str, str]] = {
-    "TX": {
-        "name": "Texas",
-        "code": "Texas Family Code (e.g., §153.312 standard possession, §6.502 temporary orders)",
-    },
-    "CA": {
-        "name": "California",
-        "code": "California Family Code (e.g., §3011 best interest, §3170 mediation, §3190 counseling orders)",
-    },
-    "NY": {
-        "name": "New York",
-        "code": "NY Domestic Relations Law & Family Court Act (e.g., DRL §240, FCA Art. 6)",
-    },
-    "FL": {
-        "name": "Florida",
-        "code": "Florida Statutes Chapter 61 (e.g., §61.13 parenting plans, §61.21 parenting course)",
-    },
-    "IL": {
-        "name": "Illinois",
-        "code": "Illinois Marriage and Dissolution of Marriage Act (750 ILCS 5/602.5–602.7)",
-    },
-    "GA": {
-        "name": "Georgia",
-        "code": "Georgia Code Title 19 (e.g., O.C.G.A. §19-9-3 best interest factors)",
-    },
-    "PA": {
-        "name": "Pennsylvania",
-        "code": "23 Pa.C.S. §5328 (custody factors) and §5337 (relocation)",
-    },
-    "OH": {
-        "name": "Ohio",
-        "code": "Ohio Revised Code §3109.04 (allocation of parental rights)",
-    },
-    "WA": {
-        "name": "Washington",
-        "code": "RCW 26.09 (parenting plans), RCW 26.12 (family court)",
-    },
-    "MA": {
-        "name": "Massachusetts",
-        "code": "M.G.L. c.208 §31 (custody) and c.215 §56A (GAL/probate)",
-    },
-    "OTHER": {
-        "name": "Other / Unknown jurisdiction",
-        "code": "(Jurisdiction not specified — speak in general U.S. family-court terms and tell the reader to confirm specifics with a local attorney.)",
-    },
-}
-
-
-def _jurisdiction_addendum(juris: Optional[str]) -> str:
-    if not juris:
-        return ""
-    info = JURISDICTION_REFS.get(juris.upper())
-    if not info:
-        return (
-            f"\n\nJURISDICTION CONTEXT: The user has identified their "
-            f"jurisdiction as '{juris}'. Reference the relevant family-law "
-            f"framework for that jurisdiction in general terms only; do not "
-            f"fabricate statutes. Tell the user to confirm specifics with a "
-            f"local attorney."
-        )
-    return (
-        f"\n\nJURISDICTION CONTEXT: The user's jurisdiction is "
-        f"{info['name']}. When referencing law, prefer {info['code']}. "
-        f"Cite statutes by section/title only — never quote exact text. "
-        f"Always remind the user these references are for orientation, not "
-        f"legal advice, and that family law varies by county and judge."
-    )
-
-
-def _order_context_addendum(analysis: dict, filename: str) -> str:
-    if not analysis:
-        return ""
-    parts = [
-        "\n\nATTACHED ORDER CONTEXT: The user has previously uploaded a "
-        f"court document ('{filename}') which Decipher analyzed. Use this "
-        "context in every reply. Quote specific obligations or deadlines "
-        "from it when relevant. Do not invent details not present here.",
-        f"Document type: {analysis.get('document_type', 'Unknown')}",
-        f"Summary: {analysis.get('summary', '')}",
-    ]
-    obligations = analysis.get("key_obligations") or []
-    if obligations:
-        parts.append("Obligations:")
-        for o in obligations[:10]:
-            parts.append(
-                f"  • {o.get('item','')} — {o.get('responsible_party','')} — {o.get('due','')}"
-            )
-    deadlines = analysis.get("deadlines") or []
-    if deadlines:
-        parts.append("Deadlines:")
-        for d in deadlines[:10]:
-            parts.append(
-                f"  • {d.get('date_or_window','')}: {d.get('what','')}"
-            )
-    watch = analysis.get("things_to_watch") or []
-    if watch:
-        parts.append("Flags to watch: " + " | ".join(str(x) for x in watch[:6]))
-    return "\n".join(parts)
-
-
 @api_router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest):
     session_id = payload.session_id or str(uuid.uuid4())
     try:
         context_label = None
-        system_message = ANCHOR_BASE_PROMPT
-        system_message += _jurisdiction_addendum(payload.jurisdiction)
-
-        if payload.order_id:
-            order = await db.order_analyses.find_one(
-                {"id": payload.order_id}, {"_id": 0}
-            )
-            if order:
-                system_message += _order_context_addendum(
-                    order.get("analysis") or {},
-                    order.get("filename") or "uploaded order",
-                )
-                doc_type = (order.get("analysis") or {}).get("document_type")
-                context_label = (
-                    f"{doc_type} · {order.get('filename')}"
-                    if doc_type
-                    else order.get("filename")
-                )
-
-        chat_client = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
-            system_message=system_message,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        reply = "I'm here with you. What's weighing on your heart about the court situation today? ❤️ (Simple mode — full AI coming soon)"
 
         await db.chat_messages.insert_one({
             "id": str(uuid.uuid4()),
@@ -562,8 +442,6 @@ async def chat(payload: ChatRequest):
             "jurisdiction": payload.jurisdiction,
             "created_at": now_iso(),
         })
-
-        reply = await chat_client.send_message(UserMessage(text=payload.message))
 
         await db.chat_messages.insert_one({
             "id": str(uuid.uuid4()),
@@ -585,8 +463,11 @@ async def chat(payload: ChatRequest):
 async def list_jurisdictions():
     """Return a list of supported jurisdictions for the UI dropdown."""
     return [
-        {"code": code, "name": data["name"]}
-        for code, data in JURISDICTION_REFS.items()
+        {"code": "TX", "name": "Texas"},
+        {"code": "CA", "name": "California"},
+        {"code": "NY", "name": "New York"},
+        {"code": "FL", "name": "Florida"},
+        {"code": "OTHER", "name": "Other"},
     ]
 
 
@@ -598,33 +479,7 @@ async def chat_history(session_id: str):
     return {"session_id": session_id, "messages": msgs}
 
 
-# =========================
-# Court Order Decipher (Gemini 2.5 Pro — supports file attachments)
-# =========================
-ORDER_ANALYZER_SYSTEM = (
-    "You are 'Decipher', a calm, plain-language analyst on Unbound — a "
-    "platform for people navigating family court. You read court orders, "
-    "stipulations, mandates, and custody documents and translate them into "
-    "human language. You are NOT a lawyer. You give educational analysis "
-    "and recommended next steps, never legal advice. "
-    "You always: (1) acknowledge the emotional weight of receiving an "
-    "order, (2) identify obligations clearly, (3) flag deadlines, (4) name "
-    "anything that looks unusual, vague, or potentially biased so the "
-    "reader can ask their attorney about it, (5) recommend concrete next "
-    "steps a non-lawyer can take this week. "
-    "ALWAYS respond with VALID JSON ONLY (no prose outside the JSON, no "
-    "markdown fences). The JSON schema is: "
-    '{"document_type": str, "summary": str, "tone_note": str, '
-    '"key_obligations": [{"item": str, "responsible_party": str, '
-    '"due": str}], "deadlines": [{"date_or_window": str, "what": str}], '
-    '"things_to_watch": [str], "next_steps": [{"step": str, '
-    '"why_it_matters": str}], "questions_for_your_attorney": [str], '
-    '"emotional_grounding": str}. '
-    "If a field has no content, return an empty string or empty array — "
-    "never omit a key. Keep each string under 280 characters."
-)
-
-
+# Simplified Decipher (no real AI for now)
 class OrderAnalysisResult(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
@@ -636,132 +491,37 @@ class OrderAnalysisResult(BaseModel):
     analysis: dict
 
 
-ALLOWED_MIMES = {
-    "application/pdf",
-    "text/plain",
-    "image/png",
-    "image/jpeg",
-    "image/webp",
-    "image/heic",
-    "image/heif",
-}
-
-
-def _safe_parse_json(raw: str) -> dict:
-    """Try hard to parse Gemini's reply as JSON."""
-    if not raw:
-        return {"error": "Empty model response"}
-    # Strip code fences if present
-    cleaned = raw.strip()
-    cleaned = re.sub(r"^```(?:json)?", "", cleaned).strip()
-    cleaned = re.sub(r"```$", "", cleaned).strip()
-    try:
-        return json.loads(cleaned)
-    except Exception:
-        # Find first { and last } and try again
-        first = cleaned.find("{")
-        last = cleaned.rfind("}")
-        if first != -1 and last != -1:
-            try:
-                return json.loads(cleaned[first : last + 1])
-            except Exception:
-                pass
-    return {
-        "document_type": "Unknown",
-        "summary": cleaned[:2000],
-        "tone_note": "",
-        "key_obligations": [],
-        "deadlines": [],
-        "things_to_watch": [],
-        "next_steps": [],
-        "questions_for_your_attorney": [],
-        "emotional_grounding": "",
-        "_raw": True,
-    }
-
-
 @api_router.post("/orders/analyze", response_model=OrderAnalysisResult)
 async def analyze_order(
     file: UploadFile = File(...),
     notes: Optional[str] = Form(None),
     jurisdiction: Optional[str] = Form(None),
 ):
-    mime = (file.content_type or "").lower()
-    if mime not in ALLOWED_MIMES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type: {mime}. Upload a PDF, image, or text file.",
-        )
-
-    # Persist to a temp file — emergentintegrations needs a real file path
-    suffix = Path(file.filename or "").suffix or ".bin"
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    try:
-        content = await file.read()
-        if len(content) > 15 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="File too large (max 15 MB).")
-        tmp.write(content)
-        tmp.flush()
-        tmp.close()
-
-        session_id = f"order-{uuid.uuid4()}"
-        system_msg = ORDER_ANALYZER_SYSTEM + _jurisdiction_addendum(jurisdiction)
-        chat_client = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
-            system_message=system_msg,
-        ).with_model("gemini", "gemini-2.5-pro")
-
-        attachment = FileContentWithMimeType(
-            file_path=tmp.name,
-            mime_type=mime,
-        )
-
-        user_text = (
-            "Analyze the attached family court document. Return ONLY the "
-            "JSON object described in the system message. "
-        )
-        if jurisdiction:
-            j_info = JURISDICTION_REFS.get(jurisdiction.upper())
-            j_name = j_info["name"] if j_info else jurisdiction
-            user_text += (
-                f"\n\nUser has identified their jurisdiction as {j_name}. "
-                f"When citing legal references in questions_for_your_attorney "
-                f"or things_to_watch, prefer that jurisdiction's framework."
-            )
-        if notes:
-            user_text += f"\n\nUser context (optional): {notes[:500]}"
-
-        raw = await chat_client.send_message(
-            UserMessage(text=user_text, file_contents=[attachment])
-        )
-
-        analysis = _safe_parse_json(raw)
-
-        j_info = JURISDICTION_REFS.get((jurisdiction or "").upper()) if jurisdiction else None
-        result = {
-            "id": str(uuid.uuid4()),
-            "filename": file.filename or "untitled",
-            "mime_type": mime,
-            "created_at": now_iso(),
-            "jurisdiction": jurisdiction.upper() if jurisdiction else None,
-            "jurisdiction_name": j_info["name"] if j_info else None,
-            "analysis": analysis,
+    # Mock response for now
+    result = {
+        "id": str(uuid.uuid4()),
+        "filename": file.filename or "uploaded_document",
+        "mime_type": file.content_type or "application/octet-stream",
+        "created_at": now_iso(),
+        "jurisdiction": jurisdiction,
+        "jurisdiction_name": jurisdiction,
+        "analysis": {
+            "document_type": "Court Order (Mock)",
+            "summary": "This is a simplified mock analysis. Upload worked! Full AI analysis coming soon.",
+            "tone_note": "Supportive mode active",
+            "key_obligations": [],
+            "deadlines": [],
+            "things_to_watch": [],
+            "next_steps": [
+                {"step": "Talk to a licensed counselor from the directory", "why_it_matters": "Professional support is important"}
+            ],
+            "questions_for_your_attorney": ["What does this section mean for my case?"],
+            "emotional_grounding": "You're taking a brave step by seeking clarity."
         }
-        await db.order_analyses.insert_one(result.copy())
-        # Mongo mutates dict with _id — strip it before returning.
-        result.pop("_id", None)
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logging.exception("Order analysis error")
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-    finally:
-        try:
-            os.unlink(tmp.name)
-        except Exception:
-            pass
+    }
+    await db.order_analyses.insert_one(result.copy())
+    result.pop("_id", None)
+    return result
 
 
 @api_router.get("/orders/{order_id}", response_model=OrderAnalysisResult)
